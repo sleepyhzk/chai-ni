@@ -1,6 +1,9 @@
 import { useState, useMemo, useRef, useCallback } from 'react';
 import { Keyboard, Check, X, ArrowRight, RotateCcw, Volume2, Trophy } from 'lucide-react';
 import { INITIAL_VOCAB } from '@/data/vocabData';
+import { topicOf } from '@/data/vocabTopics';
+import { TopicSelect, countByTopic } from '@/components/TopicSelect';
+import type { TopicFilter } from '@/components/TopicSelect';
 import { speakChinese, isSpeechSupported } from '@/lib/speech';
 import { vocabKey, speechText } from '@/lib/vocabKey';
 import { isPinyinAnswerCorrect } from '@/lib/typing';
@@ -16,6 +19,7 @@ function shuffleArray(arr: VocabItem[]): VocabItem[] {
 
 export function TypingView() {
   const [hskFilter, setHskFilter] = useState<HskFilter>('all');
+  const [topic, setTopic] = useState<TopicFilter>('all');
   const [input, setInput] = useState('');
   const [answerState, setAnswerState] = useState<AnswerState>('idle');
   const [score, setScore] = useState(0);
@@ -28,11 +32,23 @@ export function TypingView() {
   const inputRef = useRef<HTMLInputElement>(null);
   const { starred } = useStarred();
 
-  const pool = useMemo(() => {
-    if (hskFilter === 'all') return queue;
-    if (hskFilter === 'starred') return queue.filter((w) => starred.has(vocabKey(w)));
-    return queue.filter((w) => w.hsk === hskFilter);
-  }, [queue, hskFilter, starred]);
+  const matchesLevel = useCallback(
+    (w: VocabItem) => {
+      if (hskFilter === 'all') return true;
+      if (hskFilter === 'starred') return starred.has(vocabKey(w));
+      return w.hsk === hskFilter;
+    },
+    [hskFilter, starred]
+  );
+
+  const pool = useMemo(
+    () => queue.filter((w) => matchesLevel(w) && (topic === 'all' || topicOf(w) === topic)),
+    [queue, matchesLevel, topic]
+  );
+
+  // Số từ của từng chủ đề trong bộ lọc cấp độ đang chọn
+  const levelWords = useMemo(() => INITIAL_VOCAB.filter(matchesLevel), [matchesLevel]);
+  const topicCounts = useMemo(() => countByTopic(levelWords, topicOf), [levelWords]);
 
   const current = pool.length > 0 ? pool[index % pool.length] : undefined;
 
@@ -68,8 +84,7 @@ export function TypingView() {
     next();
   }, [next]);
 
-  const switchLevel = useCallback((level: HskFilter) => {
-    setHskFilter(level);
+  const restart = useCallback(() => {
     setInput('');
     setAnswerState('idle');
     setShowAnswer(false);
@@ -80,6 +95,22 @@ export function TypingView() {
     setQueue(shuffleArray(INITIAL_VOCAB));
     setTimeout(() => inputRef.current?.focus(), 100);
   }, []);
+
+  const switchLevel = useCallback(
+    (level: HskFilter) => {
+      setHskFilter(level);
+      restart();
+    },
+    [restart]
+  );
+
+  const switchTopic = useCallback(
+    (t: TopicFilter) => {
+      setTopic(t);
+      restart();
+    },
+    [restart]
+  );
 
   const retry = useCallback(() => {
     setInput('');
@@ -95,28 +126,8 @@ export function TypingView() {
     }
   };
 
-  if (!current) {
-    return (
-      <div className="flex flex-col items-center justify-center rounded-3xl border border-gray-200 bg-white py-16 dark:border-gray-800 dark:bg-gray-900">
-        <Keyboard className="mb-4 h-12 w-12 text-gray-300" />
-        <p className="text-gray-500 dark:text-gray-400">Không có từ nào trong bộ lọc này.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
-          <Keyboard className="h-6 w-6 text-primary-600" />
-          Luyện gõ Pinyin
-        </h2>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Gõ pinyin đúng cho từ hiển thị. Có thể gõ có dấu thanh điệu hoặc không dấu, vd: "ni hao" hoặc "nǐ hǎo".
-        </p>
-      </div>
-
-      {/* HSK filter */}
+  const filterBar = (
+    <div className="space-y-3">
       <div className="flex flex-wrap gap-1.5 rounded-xl border border-gray-200 bg-white p-1 dark:border-gray-800 dark:bg-gray-900 w-fit">
         {([
           { key: 'all' as const, label: 'Tất cả' },
@@ -139,6 +150,35 @@ export function TypingView() {
           </button>
         ))}
       </div>
+      <TopicSelect value={topic} onChange={switchTopic} counts={topicCounts} total={levelWords.length} />
+    </div>
+  );
+
+  if (!current) {
+    return (
+      <div className="space-y-6">
+        {filterBar}
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-gray-200 bg-white py-16 dark:border-gray-800 dark:bg-gray-900">
+          <Keyboard className="mb-4 h-12 w-12 text-gray-300" />
+          <p className="text-gray-500 dark:text-gray-400">Không có từ nào trong bộ lọc này.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <Keyboard className="h-6 w-6 text-primary-600" />
+          Luyện gõ Pinyin
+        </h2>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          Gõ pinyin đúng cho từ hiển thị. Có thể gõ có dấu thanh điệu hoặc không dấu, vd: "ni hao" hoặc "nǐ hǎo".
+        </p>
+      </div>
+
+      {filterBar}
 
       {/* Stats bar */}
       <div className="grid grid-cols-3 gap-3">

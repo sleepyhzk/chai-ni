@@ -1,6 +1,10 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { Eraser, Lightbulb, Volume2, ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { INITIAL_VOCAB } from '@/data/vocabData';
+import { topicOf, TOPICS } from '@/data/vocabTopics';
+import type { Topic } from '@/data/vocabTopics';
+import { TopicSelect } from '@/components/TopicSelect';
+import type { TopicFilter } from '@/components/TopicSelect';
 import { speakChinese, isSpeechSupported } from '@/lib/speech';
 import { isHanziStarred } from '@/lib/vocabKey';
 import { useStarred } from '@/hooks/useStarred';
@@ -12,12 +16,30 @@ export function WritingView() {
   const [charIndex, setCharIndex] = useState(0);
   const [strokeCount, setStrokeCount] = useState(0);
   const [starredOnly, setStarredOnly] = useState(false);
+  const [topic, setTopic] = useState<TopicFilter>('all');
   const { starred } = useStarred();
 
-  const allSingleChars = Array.from(new Set(INITIAL_VOCAB.map((w) => w.hanzi).filter((h) => h.length === 1)));
-  const charList = starredOnly
-    ? allSingleChars.filter((h) => isHanziStarred(starred, h))
-    : allSingleChars;
+  const allSingleChars = useMemo(
+    () => Array.from(new Set(INITIAL_VOCAB.map((w) => w.hanzi).filter((h) => h.length === 1))),
+    []
+  );
+  // Chữ đơn của từng chủ đề (một chữ đa nghĩa có thể nằm ở nhiều chủ đề)
+  const charsByTopic = useMemo(() => {
+    const map = {} as Record<Topic, Set<string>>;
+    for (const t of TOPICS) map[t.key] = new Set();
+    for (const w of INITIAL_VOCAB) {
+      const t = topicOf(w);
+      if (t && w.hanzi.length === 1) map[t].add(w.hanzi);
+    }
+    return map;
+  }, []);
+  const topicCounts = useMemo(() => {
+    const counts: Partial<Record<Topic, number>> = {};
+    for (const t of TOPICS) counts[t.key] = charsByTopic[t.key].size;
+    return counts;
+  }, [charsByTopic]);
+  const baseChars = topic === 'all' ? allSingleChars : allSingleChars.filter((h) => charsByTopic[topic].has(h));
+  const charList = starredOnly ? baseChars.filter((h) => isHanziStarred(starred, h)) : baseChars;
   const selectedChar = charList[charIndex] ?? charList[0] ?? '你';
 
   const setupCanvas = useCallback(() => {
@@ -87,12 +109,20 @@ export function WritingView() {
     setStrokeCount(0);
   };
 
+  const changeTopic = (t: TopicFilter) => {
+    setTopic(t);
+    setCharIndex(0);
+    clearCanvas();
+  };
+
   const prevChar = () => {
+    if (charList.length === 0) return;
     setCharIndex((i) => (i - 1 + charList.length) % charList.length);
     clearCanvas();
   };
 
   const nextChar = () => {
+    if (charList.length === 0) return;
     setCharIndex((i) => (i + 1) % charList.length);
     clearCanvas();
   };
@@ -105,6 +135,8 @@ export function WritingView() {
           Chọn một chữ để xem mẫu, rồi dùng chuột hoặc cảm ứng để tập viết trên canvas.
         </p>
       </div>
+
+      <TopicSelect value={topic} onChange={changeTopic} counts={topicCounts} total={allSingleChars.length} />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-4">
