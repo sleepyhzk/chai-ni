@@ -4,6 +4,9 @@ import { INITIAL_VOCAB, VOCAB_BY_LEVEL } from '@/data/vocabData';
 import { speakChinese, isSpeechSupported } from '@/lib/speech';
 import { vocabKey, speechText } from '@/lib/vocabKey';
 import { useStarred } from '@/hooks/useStarred';
+import { topicOf } from '@/data/vocabTopics';
+import { TopicSelect, countByTopic } from '@/components/TopicSelect';
+import type { TopicFilter } from '@/components/TopicSelect';
 import type { VocabItem, Hsk } from '@/lib/types';
 
 type Tab = 'vocab' | 'quiz';
@@ -133,8 +136,16 @@ function HskAccordionVocab({
     { hsk: 'extra', label: 'Bổ sung' },
   ];
 
+  const [topic, setTopic] = useState<TopicFilter>('all');
+  const q = searchQuery.trim().toLowerCase();
+  const matchesSearch = (w: VocabItem) =>
+    !q || w.hanzi.includes(searchQuery.trim()) || w.pinyin.toLowerCase().includes(q) || w.meaning.toLowerCase().includes(q);
+  const topicCounts = useMemo(() => countByTopic(INITIAL_VOCAB.filter(matchesSearch), topicOf), [searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+  const totalMatching = useMemo(() => INITIAL_VOCAB.filter(matchesSearch).length, [searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="space-y-4">
+      <TopicSelect value={topic} onChange={setTopic} counts={topicCounts} total={totalMatching} />
       <input
         type="text"
         value={searchQuery}
@@ -145,19 +156,14 @@ function HskAccordionVocab({
 
       <div className="space-y-3">
         {levels.map(({ hsk, label }) => {
-          const words = searchQuery.trim()
-            ? (VOCAB_BY_LEVEL[hsk] ?? []).filter(
-                (w) =>
-                  w.hanzi.includes(searchQuery) ||
-                  w.pinyin.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                  w.meaning.toLowerCase().includes(searchQuery.toLowerCase())
-              )
-            : VOCAB_BY_LEVEL[hsk] ?? [];
-          const isOpen = expandedLevel === hsk || !!searchQuery.trim();
+          const words = (VOCAB_BY_LEVEL[hsk] ?? []).filter(
+            (w) => matchesSearch(w) && (topic === 'all' || topicOf(w) === topic)
+          );
+          const isOpen = expandedLevel === hsk || !!searchQuery.trim() || topic !== 'all';
           return (
             <div key={hsk} className="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
               <button
-                onClick={() => setExpandedLevel(isOpen && !searchQuery.trim() ? null : hsk)}
+                onClick={() => setExpandedLevel(isOpen && !searchQuery.trim() && topic === 'all' ? null : hsk)}
                 className="flex w-full items-center justify-between px-5 py-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
               >
                 <div className="flex items-center gap-3">

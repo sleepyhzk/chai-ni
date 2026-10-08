@@ -1,6 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Volume2, Eye, EyeOff, RotateCcw, Check, Layers, Inbox, Star } from 'lucide-react';
 import { INITIAL_VOCAB, VOCAB_BY_LEVEL } from '@/data/vocabData';
+import { topicOf } from '@/data/vocabTopics';
+import { TopicSelect, countByTopic } from '@/components/TopicSelect';
+import type { TopicFilter } from '@/components/TopicSelect';
 import { speakChinese, isSpeechSupported } from '@/lib/speech';
 import { useSrsProgress } from '@/hooks/useSrsProgress';
 import { useStarred } from '@/hooks/useStarred';
@@ -30,7 +33,7 @@ function sortByDue(list: VocabItem[], progressMap: ProgressMap): VocabItem[] {
   });
 }
 
-function buildDeck(filter: FlashcardFilter, progressMap: ProgressMap, starred: Set<string>): VocabItem[] {
+function listFor(filter: FlashcardFilter, progressMap: ProgressMap, starred: Set<string>): VocabItem[] {
   let list: VocabItem[];
   if (filter === 'all') list = INITIAL_VOCAB;
   else if (filter === 'hard') list = INITIAL_VOCAB.filter((w) => progressMap[vocabKey(w)]?.lastQuality === 'hard');
@@ -41,6 +44,12 @@ function buildDeck(filter: FlashcardFilter, progressMap: ProgressMap, starred: S
     });
   } else if (filter === 'starred') list = INITIAL_VOCAB.filter((w) => starred.has(vocabKey(w)));
   else list = VOCAB_BY_LEVEL[filter] ?? [];
+  return list;
+}
+
+function buildDeck(filter: FlashcardFilter, topic: TopicFilter, progressMap: ProgressMap, starred: Set<string>): VocabItem[] {
+  let list = listFor(filter, progressMap, starred);
+  if (topic !== 'all') list = list.filter((w) => topicOf(w) === topic);
   return sortByDue(list, progressMap);
 }
 
@@ -48,6 +57,7 @@ export function FlashcardView() {
   const { progressMap, upsert } = useSrsProgress();
   const { starred, toggle: toggleStar } = useStarred();
   const [filter, setFilter] = useState<FlashcardFilter>('all');
+  const [topic, setTopic] = useState<TopicFilter>('all');
   const [showPinyin, setShowPinyin] = useState(true);
   const [showMeaning, setShowMeaning] = useState(false);
   const [index, setIndex] = useState(0);
@@ -61,10 +71,10 @@ export function FlashcardView() {
   const starredRef = useRef(starred);
   starredRef.current = starred;
 
-  const [cards, setCards] = useState<VocabItem[]>(() => buildDeck('all', progressMap, starred));
+  const [cards, setCards] = useState<VocabItem[]>(() => buildDeck('all', 'all', progressMap, starred));
 
-  const startSession = useCallback((f: FlashcardFilter) => {
-    setCards(buildDeck(f, progressRef.current, starredRef.current));
+  const startSession = useCallback((f: FlashcardFilter, t: TopicFilter) => {
+    setCards(buildDeck(f, t, progressRef.current, starredRef.current));
     setIndex(0);
     setShowMeaning(false);
     setFinished(false);
@@ -72,8 +82,8 @@ export function FlashcardView() {
   }, []);
 
   useEffect(() => {
-    startSession(filter);
-  }, [filter, startSession]);
+    startSession(filter, topic);
+  }, [filter, topic, startSession]);
 
   const currentCard: VocabItem | undefined = cards[index];
 
@@ -143,7 +153,7 @@ export function FlashcardView() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const reset = () => startSession(filter);
+  const reset = () => startSession(filter, topic);
 
   const isStarredCard = currentCard ? starred.has(vocabKey(currentCard)) : false;
 
@@ -156,6 +166,10 @@ export function FlashcardView() {
     const s = progressMap[vocabKey(w)];
     return s && (s.lastQuality === 'good' || s.lastQuality === 'easy');
   }).length;
+
+  // Số từ của từng chủ đề trong bộ lọc đang chọn (HSK 1/2/3, Đã đánh dấu...)
+  const baseList = listFor(filter, progressMap, starred);
+  const topicCounts = useMemo(() => countByTopic(baseList, topicOf), [baseList]);
 
   const filterTabs: { key: FlashcardFilter; label: string; count: number }[] = [
     { key: 'all', label: 'Tất cả', count: INITIAL_VOCAB.length },
@@ -200,10 +214,12 @@ export function FlashcardView() {
         ))}
       </div>
 
+      <TopicSelect value={topic} onChange={setTopic} counts={topicCounts} total={baseList.length} />
+
       {finished ? (
         <SessionComplete stats={sessionStats} onReset={reset} />
       ) : cards.length === 0 || !currentCard ? (
-        <EmptyState onShowAll={() => setFilter('all')} />
+        <EmptyState onShowAll={() => { setFilter('all'); setTopic('all'); }} />
       ) : (
         <>
           <div className="flex items-center gap-3">
