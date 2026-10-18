@@ -18,7 +18,7 @@ const EMPTY_STATS: SessionStats = { reviewed: 0, known: 0, unknown: 0 };
 /**
  * Thứ tự ôn: thẻ đến hạn (cũ nhất trước) -> thẻ mới chưa học -> thẻ chưa đến hạn.
  */
-function sortByDue(list: VocabItem[], progressMap: ProgressMap): VocabItem[] {
+export function sortByDue(list: VocabItem[], progressMap: ProgressMap): VocabItem[] {
   const rank = (w: VocabItem) => {
     const s = progressMap[vocabKey(w)];
     if (!s) return 1;
@@ -96,7 +96,10 @@ export function FlashcardView() {
       known: prev.known + (quality === 'good' ? 1 : 0),
       unknown: prev.unknown + (quality === 'hard' ? 1 : 0),
     }));
-    if (index + 1 >= cards.length) setFinished(true);
+    // "Chưa thuộc": cho thẻ quay lại cuối phiên để ôn ngay trong hôm nay.
+    const requeue = quality === 'hard';
+    if (requeue) setCards((c) => [...c, currentCard]);
+    if (index + 1 >= cards.length + (requeue ? 1 : 0)) setFinished(true);
     else { setIndex((i) => i + 1); setShowMeaning(false); }
   };
 
@@ -276,7 +279,7 @@ export function FlashcardView() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <ReviewButton label="Chưa thuộc" sublabel="Ôn lại vào ngày mai" hint="←" onClick={() => handleReview('hard')} color="border-error-200 bg-error-50 text-error-700 hover:bg-error-100 dark:border-error-900 dark:bg-error-950/30 dark:text-error-400 dark:hover:bg-error-950/50" />
+            <ReviewButton label="Chưa thuộc" sublabel="Gặp lại cuối phiên và ngày mai" hint="←" onClick={() => handleReview('hard')} color="border-error-200 bg-error-50 text-error-700 hover:bg-error-100 dark:border-error-900 dark:bg-error-950/30 dark:text-error-400 dark:hover:bg-error-950/50" />
             <ReviewButton label="Thuộc rồi" sublabel="Ôn lại sau vài ngày" hint="→" onClick={() => handleReview('good')} color="border-success-200 bg-success-50 text-success-700 hover:bg-success-100 dark:border-success-900 dark:bg-success-950/30 dark:text-success-400 dark:hover:bg-success-950/50" />
           </div>
 

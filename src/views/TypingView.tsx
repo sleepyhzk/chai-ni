@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { Keyboard, Check, X, ArrowRight, RotateCcw, Volume2, Trophy } from 'lucide-react';
 import { INITIAL_VOCAB } from '@/data/vocabData';
 import { topicOf } from '@/data/vocabTopics';
@@ -8,14 +8,12 @@ import { speakChinese, isSpeechSupported } from '@/lib/speech';
 import { vocabKey, speechText } from '@/lib/vocabKey';
 import { isPinyinAnswerCorrect } from '@/lib/typing';
 import { useStarred } from '@/hooks/useStarred';
+import { shuffle as shuffleArray } from '@/lib/shuffle';
 import type { VocabItem, Hsk } from '@/lib/types';
 
 type HskFilter = 'all' | Hsk | 'starred';
 type AnswerState = 'idle' | 'correct' | 'wrong';
 
-function shuffleArray(arr: VocabItem[]): VocabItem[] {
-  return [...arr].sort(() => Math.random() - 0.5);
-}
 
 export function TypingView() {
   const [hskFilter, setHskFilter] = useState<HskFilter>('all');
@@ -30,6 +28,8 @@ export function TypingView() {
   const [queue, setQueue] = useState<VocabItem[]>(() => shuffleArray(INITIAL_VOCAB));
   const [index, setIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const timerRef = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(timerRef.current), []);
   const { starred } = useStarred();
 
   const matchesLevel = useCallback(
@@ -53,6 +53,7 @@ export function TypingView() {
   const current = pool.length > 0 ? pool[index % pool.length] : undefined;
 
   const next = useCallback(() => {
+    window.clearTimeout(timerRef.current); // tránh nhảy cóc 2 từ khi bấm tay trước lúc tự chuyển
     setInput('');
     setAnswerState('idle');
     setShowAnswer(false);
@@ -72,7 +73,7 @@ export function TypingView() {
         setBestStreak((b) => Math.max(b, ns));
         return ns;
       });
-      setTimeout(() => next(), 1200);
+      timerRef.current = window.setTimeout(next, 1200);
     } else {
       setStreak(0);
     }
@@ -230,7 +231,7 @@ export function TypingView() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKey}
-                disabled={answerState !== 'idle'}
+                readOnly={answerState !== 'idle'}
                 placeholder="Gõ pinyin tại đây..."
                 autoFocus
                 className="w-full rounded-xl bg-transparent px-5 py-4 text-lg text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100"

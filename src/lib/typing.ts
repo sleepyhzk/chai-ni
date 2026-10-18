@@ -21,5 +21,6 @@ export function isPinyinAnswerCorrect(input: string, word: { hanzi: string; piny
     word.hanzi.length > 1 && word.hanzi.endsWith('儿') && expected.endsWith('er')
       ? [expected, expected.slice(0, -2) + 'r']
       : [expected];
-  return accepted.includes(stripTones(input));
+  // Bàn phím pinyin gõ ü bằng 'v' (nv, lv): quy về 'u' như đáp án đã bỏ dấu.
+  return accepted.includes(stripTones(input).replace(/v/g, 'u'));
 }

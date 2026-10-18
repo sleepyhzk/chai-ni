@@ -22,7 +22,7 @@ Email mặc định của Supabase chỉ gửi được vài thư mỗi giờ v�
 
 ## 4. Chạy thử trên máy
 ```
-npm install
+npm install        # tạo lại package-lock.json (file cũ đã bị xóa vì lệch với package.json)
 cp .env.example .env.local     # điền URL và key
 npm run typecheck
 npm run dev
@@ -39,5 +39,4 @@ npm run dev
 - Đăng nhập lần đầu: tiến độ và dấu sao trên máy được gộp với tài khoản. Mỗi thẻ lấy bản được ôn gần nhất; dấu sao lấy thay đổi mới nhất.
 - Sau đó mỗi lần chấm thẻ hoặc bấm sao sẽ tự đẩy lên sau khoảng 1 giây. Mất mạng thì tự thử lại khi có mạng.
 - Đăng xuất: xóa tiến độ trên máy này (dữ liệu vẫn nằm trên tài khoản), tránh lộ dữ liệu trên máy dùng chung.
-- Nút reset tiến độ xóa cả bản trên cloud. Thiết bị khác còn bản cũ có thể đẩy lại khi đăng nhập.
 - Cài đặt giọng đọc và chế độ tối vẫn chỉ lưu theo từng thiết bị.

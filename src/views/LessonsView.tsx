@@ -7,6 +7,8 @@ import { useStarred } from '@/hooks/useStarred';
 import { topicOf } from '@/data/vocabTopics';
 import { TopicSelect, countByTopic } from '@/components/TopicSelect';
 import type { TopicFilter } from '@/components/TopicSelect';
+import { normalize } from '@/lib/vocabSearch';
+import { shuffle } from '@/lib/shuffle';
 import type { VocabItem, Hsk } from '@/lib/types';
 
 type Tab = 'vocab' | 'quiz';
@@ -23,11 +25,14 @@ export function LessonsView() {
 
   const filteredVocab = useMemo(() => {
     if (!searchQuery.trim()) return baseVocab;
+    const raw = searchQuery.trim();
+    const qn = normalize(raw);
+    const qc = qn.replace(/ /g, '');
     return baseVocab.filter(
       (w) =>
-        w.hanzi.includes(searchQuery) ||
-        w.pinyin.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        w.meaning.toLowerCase().includes(searchQuery.toLowerCase())
+        w.hanzi.includes(raw) ||
+        normalize(w.pinyin).replace(/ /g, '').includes(qc) ||
+        normalize(w.meaning).includes(qn)
     );
   }, [baseVocab, searchQuery]);
 
@@ -137,9 +142,10 @@ function HskAccordionVocab({
   ];
 
   const [topic, setTopic] = useState<TopicFilter>('all');
-  const q = searchQuery.trim().toLowerCase();
+  const q = normalize(searchQuery);
+  const qc = q.replace(/ /g, '');
   const matchesSearch = (w: VocabItem) =>
-    !q || w.hanzi.includes(searchQuery.trim()) || w.pinyin.toLowerCase().includes(q) || w.meaning.toLowerCase().includes(q);
+    !q || w.hanzi.includes(searchQuery.trim()) || normalize(w.pinyin).replace(/ /g, '').includes(qc) || normalize(w.meaning).includes(q);
   const topicCounts = useMemo(() => countByTopic(INITIAL_VOCAB.filter(matchesSearch), topicOf), [searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
   const totalMatching = useMemo(() => INITIAL_VOCAB.filter(matchesSearch).length, [searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -214,7 +220,7 @@ function VocabList({ words, starredHook }: { words: VocabItem[]; starredHook: Re
           <button
             onClick={() => toggle(vocabKey(w))}
             className={`flex-shrink-0 rounded-lg p-2 transition-all hover:bg-gray-100 dark:hover:bg-gray-800 ${
-              isStarred(vocabKey(w)) ? 'text-accent-500' : 'text-gray-300 opacity-0 group-hover:opacity-100'
+              isStarred(vocabKey(w)) ? 'text-accent-500' : 'text-gray-300 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100'
             }`}
             title={isStarred(vocabKey(w)) ? 'Bỏ đánh dấu' : 'Đánh dấu cần học'}
           >
@@ -223,7 +229,7 @@ function VocabList({ words, starredHook }: { words: VocabItem[]; starredHook: Re
           {isSpeechSupported() && (
             <button
               onClick={() => speakChinese(speechText(w))}
-              className="flex-shrink-0 rounded-lg p-2 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-primary-600 group-hover:opacity-100 dark:hover:bg-gray-800 dark:hover:text-primary-400"
+              className="flex-shrink-0 rounded-lg p-2 text-gray-400 transition-opacity hover:bg-gray-100 hover:text-primary-600 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 dark:hover:bg-gray-800 dark:hover:text-primary-400"
             >
               <Volume2 className="h-4 w-4" />
             </button>
@@ -382,13 +388,19 @@ interface QuizQuestion {
 
 function generateQuestions(words: VocabItem[], mode: QuizMode): QuizQuestion[] {
   if (words.length < 4) return [];
-  const shuffled = [...words].sort(() => Math.random() - 0.5);
-  const picked = shuffled.slice(0, Math.min(10, shuffled.length));
+  const text = (w: VocabItem) => (mode === 'hanzi-to-pinyin' ? w.pinyin : w.meaning);
+  const picked = shuffle(words).slice(0, Math.min(10, words.length));
   return picked.map((word) => {
-    const others = words.filter((w) => w.hanzi !== word.hanzi).sort(() => Math.random() - 0.5).slice(0, 3);
-    const allOptions = [word, ...others].sort(() => Math.random() - 0.5);
-    const options = allOptions.map((w) => (mode === 'hanzi-to-pinyin' ? w.pinyin : w.meaning));
-    const correctIndex = allOptions.findIndex((w) => w.hanzi === word.hanzi);
-    return { word, options, correctIndex };
+    // Chọn đáp án nhiễu có nội dung khác đáp án đúng và khác nhau, để không bị 2 nút giống hệt.
+    const seen = new Set([text(word)]);
+    const others: VocabItem[] = [];
+    for (const w of shuffle(words)) {
+      if (w.hanzi === word.hanzi || seen.has(text(w))) continue;
+      seen.add(text(w));
+      others.push(w);
+      if (others.length === 3) break;
+    }
+    const allOptions = shuffle([word, ...others]);
+    return { word, options: allOptions.map(text), correctIndex: allOptions.findIndex((w) => w === word) };
   });
 }

@@ -147,7 +147,7 @@ export function tokenizeSentence(input: string): TokenSegment[] {
   while (i < text.length) {
     const char = text[i];
 
-    if (/\s/.test(char) || /[，。！？、；：""''（）《》【】,.!?;:()？]/.test(char)) {
+    if (/\s/.test(char) || /[，。！？、；：""''（）《》【】“”‘’…—～·,.!?;:()？]/.test(char)) {
       i++;
       continue;
     }
@@ -179,7 +179,7 @@ export function tokenizeSentence(input: string): TokenSegment[] {
 
 /** Tries to find a full-sentence Vietnamese translation from the sentence database */
 export function findSentenceTranslation(chinese: string): string | null {
-  const stripPunct = (s: string) => s.replace(/[，。！？、；：""''（）《》【】,.!?;:()？\s]/g, '');
+  const stripPunct = (s: string) => s.replace(/[，。！？、；：""''（）《》【】“”‘’…—～·,.!?;:()？\s]/g, '');
   const normalized = stripPunct(chinese.trim());
   const entry = CONVERSATION_SENTENCES.find((s) => stripPunct(s.chinese) === normalized);
   return entry?.vietnamese ?? null;

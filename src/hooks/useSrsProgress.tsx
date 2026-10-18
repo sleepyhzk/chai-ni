@@ -12,6 +12,7 @@ import type { ReactNode } from 'react';
 import type { SrsState, ReviewQuality } from '@/lib/types';
 import { applyReview } from '@/lib/srs';
 import { migrateKeys } from '@/lib/vocabKey';
+import { recordActivity } from '@/lib/activity';
 import { useAuth, SIGNED_OUT_EVENT } from '@/hooks/useAuth';
 import {
   deleteAllProgress,
@@ -89,7 +90,7 @@ export function SrsProgressProvider({ children }: { children: ReactNode }) {
     dirtyRef.current.clear();
     (async () => {
       try {
-        const cloud = await fetchProgress();
+        const cloud = migrateKeys(await fetchProgress()); // khóa cũ trên cloud -> khóa mới
         if (cancelled) return;
         const { merged, toPush } = mergeProgress(progressRef.current, cloud);
         setProgressMap((prev) => mergeProgress(prev, cloud).merged);
@@ -128,6 +129,7 @@ export function SrsProgressProvider({ children }: { children: ReactNode }) {
 
   const upsert = useCallback(
     (word: string, quality: ReviewQuality) => {
+      recordActivity();
       setProgressMap((prev) => ({
         ...prev,
         [word]: applyReview(prev[word] ?? null, quality),

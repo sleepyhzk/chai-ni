@@ -40,7 +40,9 @@ export function WritingView() {
   }, [charsByTopic]);
   const baseChars = topic === 'all' ? allSingleChars : allSingleChars.filter((h) => charsByTopic[topic].has(h));
   const charList = starredOnly ? baseChars.filter((h) => isHanziStarred(starred, h)) : baseChars;
-  const selectedChar = charList[charIndex] ?? charList[0] ?? '你';
+  const idx = Math.min(charIndex, Math.max(charList.length - 1, 0));
+  const selectedChar = charList[idx] ?? '';
+  const sizeRef = useRef({ w: 0, h: 0 });
 
   const setupCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -49,6 +51,9 @@ export function WritingView() {
     if (!ctx) return;
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
+    // Thanh địa chỉ trên điện thoại ẩn/hiện cũng bắn 'resize': không đổi kích thước thì giữ nguyên nét vẽ.
+    if (sizeRef.current.w === rect.width && sizeRef.current.h === rect.height) return;
+    sizeRef.current = { w: rect.width, h: rect.height };
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
     ctx.scale(dpr, dpr);
@@ -162,6 +167,7 @@ export function WritingView() {
               onPointerMove={draw}
               onPointerUp={endDraw}
               onPointerLeave={endDraw}
+              onPointerCancel={endDraw}
               className="relative h-[400px] w-full touch-none sm:h-[480px]"
             />
             <div className="absolute bottom-4 left-4 rounded-lg bg-white/90 px-3 py-1.5 text-sm font-medium text-gray-600 backdrop-blur-sm dark:bg-gray-900/90 dark:text-gray-400">
@@ -228,7 +234,7 @@ export function WritingView() {
               <span className="font-hanzi text-7xl font-bold text-gray-900 dark:text-gray-100">{selectedChar}</span>
             </div>
             <p className="mt-3 text-center text-xs text-gray-400">
-              Chữ {charIndex + 1} / {charList.length}
+              {charList.length === 0 ? 'Chưa có chữ nào được đánh dấu' : `Chữ ${idx + 1} / ${charList.length}`}
             </p>
           </div>
 
@@ -243,7 +249,7 @@ export function WritingView() {
                     clearCanvas();
                   }}
                   className={`flex h-11 items-center justify-center rounded-lg font-hanzi text-2xl font-bold transition-all ${
-                    charIndex === i
+                    idx === i
                       ? 'bg-primary-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
                   }`}

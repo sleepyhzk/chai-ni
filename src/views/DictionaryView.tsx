@@ -157,7 +157,7 @@ const SYNONYM_MAP: Record<string, string[]> = {
   'cua': ['门'],
   'cai ban': ['桌子'],
   'ghe': ['椅子'],
-  'cốc': ['杯子'],
+  'coc': ['杯子'],
   'ao': ['衣服'],
   'qua tao': ['苹果'],
   'trai cay': ['水果'],
@@ -189,9 +189,9 @@ function expandQuery(qNorm: string): string[] {
   return SYNONYM_MAP[qNorm] ?? [];
 }
 
-export function DictionaryView() {
-  const [input, setInput] = useState('');
-  const [analyzed, setAnalyzed] = useState(false);
+export function DictionaryView({ initialQuery = '' }: { initialQuery?: string }) {
+  const [input, setInput] = useState(initialQuery);
+  const [analyzed, setAnalyzed] = useState(!!initialQuery.trim());
   const [category, setCategory] = useState<ConversationCategory | 'all'>('all');
   const [selectedWord, setSelectedWord] = useState<VocabItem | null>(null);
   const starredHook = useStarred();
@@ -202,8 +202,8 @@ export function DictionaryView() {
     const q = input.trim();
     if (!q || !analyzed) return [];
     if (mode === 'hanzi') {
-      return INITIAL_VOCAB.filter(
-        (w) => w.hanzi === q || w.hanzi.includes(q) || q.includes(w.hanzi)
+      return INITIAL_VOCAB.filter((w) => w.hanzi.includes(q)).sort(
+        (a, b) => Number(b.hanzi === q) - Number(a.hanzi === q) || a.hanzi.length - b.hanzi.length
       );
     }
     return searchVocab(q, expandQuery(normalizeQuery(q)));
@@ -228,7 +228,7 @@ export function DictionaryView() {
 
   const handleAnalyze = () => { if (input.trim()) setAnalyzed(true); };
   const handleClear = () => { setInput(''); setAnalyzed(false); };
-  const handleSample = (s: string) => { setInput(s); setAnalyzed(true); speakChinese(s); };
+  const handleSample = (s: string) => { setInput(s); setAnalyzed(true); speakChinese(s); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
   const modeLabels: Record<SearchMode, string> = {
     auto: '',
@@ -507,7 +507,7 @@ function WordDetailModal({
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={onClose}
     >
-      <div className="absolute inset-0 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200" />
+      <div className="absolute inset-0 bg-gray-900/50 backdrop-blur-sm" />
 
       <div
         onClick={(e) => e.stopPropagation()}
@@ -608,9 +608,9 @@ function WordToken({ segment }: { segment: ReturnType<typeof tokenizeSentence>[0
   return (
     <div
       className="group relative cursor-pointer rounded-lg px-2 py-1 transition-colors hover:bg-primary-50 dark:hover:bg-primary-950/30"
-      onMouseEnter={() => setShow(true)}
-      onMouseLeave={() => setShow(false)}
-      onClick={() => setShow((s) => !s)}
+      onPointerEnter={(e) => e.pointerType === 'mouse' && setShow(true)}
+      onPointerLeave={(e) => e.pointerType === 'mouse' && setShow(false)}
+      onClick={(e) => { if ((e.nativeEvent as PointerEvent).pointerType !== 'mouse') setShow((s) => !s); }}
     >
       <span className={`font-hanzi text-2xl ${segment.isWord ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400'}`}>
         {segment.text}

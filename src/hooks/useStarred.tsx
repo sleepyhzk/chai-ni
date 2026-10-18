@@ -90,7 +90,7 @@ export function StarredProvider({ children }: { children: ReactNode }) {
     dirtyRef.current.clear();
     (async () => {
       try {
-        const cloud = await fetchStars();
+        const cloud = migrateKeys(await fetchStars());
         if (cancelled) return;
         const { merged, toPush } = mergeStars(metaRef.current, cloud);
         setMeta((prev) => mergeStars(prev, cloud).merged);

@@ -64,14 +64,14 @@ export function Sidebar({ current, onNavigate, theme, onToggleTheme }: SidebarPr
 
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-gray-200 bg-white transition-transform dark:border-gray-800 dark:bg-gray-950 lg:translate-x-0 ${
+        className={`fixed left-0 top-0 z-40 flex h-dvh w-72 flex-col border-r border-gray-200 bg-white/85 backdrop-blur-xl transition-transform dark:border-gray-800/80 dark:bg-gray-900/85 lg:translate-x-0 ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-6 py-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-600">
-            <Languages className="h-6 w-6 text-white" />
+        <div className="flex items-center gap-3 px-6 py-6 border-b border-gray-200 dark:border-gray-800/80">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-rose-600 via-red-500 to-amber-500 shadow-lg shadow-rose-500/25 ring-2 ring-rose-500/20">
+            <span className="font-hanzi text-xl font-black text-white">字</span>
           </div>
           <div>
             <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Hán Tự</h1>
@@ -93,7 +93,7 @@ export function Sidebar({ current, onNavigate, theme, onToggleTheme }: SidebarPr
                 }}
                 className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all ${
                   active
-                    ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/50 dark:text-primary-300'
+                    ? 'border-l-4 border-primary-500 bg-gradient-to-r from-primary-500/15 to-transparent text-primary-600 shadow-sm dark:text-primary-400'
                     : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
                 }`}
               >
@@ -105,7 +105,7 @@ export function Sidebar({ current, onNavigate, theme, onToggleTheme }: SidebarPr
         </nav>
 
         {/* Voice settings + theme toggle */}
-        <div className="space-y-2 border-t border-gray-200 p-4 dark:border-gray-800">
+        <div className="mx-3 mb-4 space-y-2 rounded-2xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-950/50">
           {auth.enabled && !auth.loading && (
             auth.user ? (
               <div className="rounded-xl bg-emerald-50 px-4 py-3 dark:bg-emerald-950/40">
